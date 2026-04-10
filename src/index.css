@@ -142,7 +142,6 @@ body {
 /* Layout Principal */
 .player-layout {
   display: grid;
-  grid-template-columns: minmax(300px, 400px) 1fr;
   width: 95%;
   max-width: 1600px;
   gap: 2rem;
@@ -215,28 +214,14 @@ body {
 .lyric-line.active {
   opacity: 1;
   color: #fff;
-  filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.4));
   font-weight: 800;
 }
 
 .cotodama .lyric-line.active {
-  animation: cotodama-pulse 3s infinite alternate ease-in-out;
-  filter: drop-shadow(0 0 25px rgba(255, 255, 255, 0.6));
   line-height: 1.1;
   letter-spacing: -2px;
 }
 
-@keyframes cotodama-pulse {
-  from {
-    transform: scale(1);
-    opacity: 0.95;
-  }
-
-  to {
-    transform: scale(1.02);
-    opacity: 1;
-  }
-}
 
 /* Settings */
 .settings-panel {

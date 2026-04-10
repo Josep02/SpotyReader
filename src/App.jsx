@@ -5,17 +5,27 @@ import { getToken, redirectToLogin } from './lib/spotify';
 import { fetchLyrics, parseLyrics } from './lib/lyrics';
 
 const DEFAULT_SETTINGS = {
-  activeSize: 4.5,
-  inactiveSize: 1.5,
-  albumSize: 400,
-  titleSize: 2.2,
-  smoothTransitions: false,
   cotodamaMode: false,
+  smoothTransitions: true,
+  standard: {
+    activeSize: 4.5,
+    inactiveSize: 1.5,
+    albumSize: 400,
+    titleSize: 2.2,
+    activeBlur: 15,
+    layoutSplit: 40,
+  },
+  cotodama: {
+    activeSize: 6.0,
+    inactiveSize: 2.5,
+    activeBlur: 30,
+  }
 };
 
 // --- VISTA ESTÁNDAR ---
-const StandardView = ({ track, lyrics, currentLineIndex, settings }) => {
+const StandardView = ({ track, lyrics, currentLineIndex, settings: globalSettings }) => {
   const scrollRef = useRef(null);
+  const settings = globalSettings.standard;
 
   useEffect(() => {
     if (scrollRef.current && currentLineIndex >= 0) {
@@ -23,14 +33,18 @@ const StandardView = ({ track, lyrics, currentLineIndex, settings }) => {
       if (el) {
         const containerH = scrollRef.current.parentElement.clientHeight;
         const offset = el.offsetTop - containerH / 2 + el.clientHeight / 2;
-        scrollRef.current.style.transition = settings.smoothTransitions ? 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)' : 'none';
+        scrollRef.current.style.transition = globalSettings.smoothTransitions ? 'transform 0.8s cubic-bezier(0.16, 1, 0.3, 1)' : 'none';
         scrollRef.current.style.transform = `translateY(${-offset}px)`;
       }
     }
-  }, [currentLineIndex, settings]);
+  }, [currentLineIndex, globalSettings]);
+
+  const layoutStyle = {
+    gridTemplateColumns: `${settings.layoutSplit}% 1fr`
+  };
 
   return (
-    <div className="player-layout standard-view">
+    <div className="player-layout standard-view" style={layoutStyle}>
       <div className="track-info">
         {track ? (
           <Motion.div key={track.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="track-card">
@@ -55,6 +69,7 @@ const StandardView = ({ track, lyrics, currentLineIndex, settings }) => {
                 fontSize: index === currentLineIndex ? `${settings.activeSize}rem` : `${settings.inactiveSize}rem`,
                 opacity: index === currentLineIndex ? 1 : 0.25,
                 color: index === currentLineIndex ? '#fff' : 'rgba(255,255,255,0.25)',
+                filter: index === currentLineIndex ? `drop-shadow(0 0 ${settings.activeBlur}px rgba(255, 255, 255, 0.4))` : 'none',
               }}
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
               className={`lyric-line ${index === currentLineIndex ? 'active' : ''}`}
@@ -71,48 +86,94 @@ const StandardView = ({ track, lyrics, currentLineIndex, settings }) => {
   );
 };
 
-// --- VISTA COTODAMA ---
-const CotodamaView = ({ lyrics, currentLineIndex, settings, isFetching }) => {
+// --- EFECTOS COTODAMA ---
+const COTODAMA_EFFECTS = [
+  { // Standard Blur
+    initial: { opacity: 0, filter: 'blur(20px)', y: 20 },
+    animate: { opacity: 1, filter: 'blur(0px)', y: 0 },
+    exit: { opacity: 0, filter: 'blur(20px)', y: -20 }
+  },
+  { // Slide Left
+    initial: { opacity: 0, x: -50, filter: 'blur(10px)' },
+    animate: { opacity: 1, x: 0, filter: 'blur(0px)' },
+    exit: { opacity: 0, x: 50, filter: 'blur(10px)' }
+  },
+  { // Scale Up
+    initial: { opacity: 0, scale: 0.8, rotate: -2 },
+    animate: { opacity: 1, scale: 1, rotate: 0 },
+    exit: { opacity: 0, scale: 1.1, rotate: 2 }
+  },
+  { // Side Pop
+    initial: { opacity: 0, x: 100, skewX: -10 },
+    animate: { opacity: 1, x: 0, skewX: 0 },
+    exit: { opacity: 0, filter: 'blur(30px)', scale: 1.5 }
+  },
+  { // Perspective
+    initial: { opacity: 0, rotateX: 45, y: 30 },
+    animate: { opacity: 1, rotateX: 0, y: 0 },
+    exit: { opacity: 0, rotateX: -45, y: -30 }
+  }
+];
+
+const getEffect = (text) => {
+  const hash = text ? text.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) : 0;
+  return COTODAMA_EFFECTS[hash % COTODAMA_EFFECTS.length];
+};
+
+const CotodamaView = ({ lyrics, currentLineIndex, settings: globalSettings, isFetching }) => {
+  const settings = globalSettings.cotodama;
+  const getLine = (offset) => lyrics[currentLineIndex + offset];
+
+  const renderLyric = (line, offset) => {
+    if (!line) return null;
+    const effect = getEffect(line.text);
+    const isActive = offset === 0;
+
+    return (
+      <Motion.div
+        key={`${currentLineIndex + offset}-${line.text}`}
+        initial={effect.initial}
+        animate={{
+          ...effect.animate,
+          opacity: isActive ? 1 : 0.25,
+          scale: isActive ? 1 : 0.85,
+          filter: isActive ? `drop-shadow(0 0 ${settings.activeBlur}px rgba(255, 255, 255, 0.8))` : 'blur(4px)',
+        }}
+        exit={effect.exit}
+        transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+        className={`lyric-line ${isActive ? 'active' : ''}`}
+        style={{
+          width: '100%',
+          textAlign: 'center',
+          padding: '1rem 4rem',
+          position: 'absolute',
+          fontSize: isActive ? `${settings.activeSize}rem` : `${settings.inactiveSize}rem`,
+          wordBreak: 'normal',
+          overflowWrap: 'break-word',
+          whiteSpace: 'normal',
+          zIndex: isActive ? 10 : 5,
+          transform: `translateY(${offset * 120}px)`,
+        }}
+      >
+        <span style={{ maxWidth: '90vw', display: 'inline-block' }}>{line.text}</span>
+      </Motion.div>
+    );
+  };
+
   return (
     <div className="cotodama-layout">
-      <div className="lyrics-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-        <AnimatePresence mode="wait">
+      <div className="lyrics-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', perspective: '1000px' }}>
+        <AnimatePresence mode="popLayout">
           {isFetching ? (
-            <Motion.div
-              key="loading"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: [0.2, 0.5, 0.2] }}
-              transition={{ repeat: Infinity, duration: 2 }}
-              style={{ fontSize: '1.5rem', color: 'var(--text-muted)' }}
-            >
+            <Motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: [0.2, 0.5, 0.2] }} transition={{ repeat: Infinity, duration: 2 }} style={{ fontSize: '1.5rem', color: 'var(--text-muted)' }}>
               Buscando Letras...
             </Motion.div>
           ) : lyrics.length > 0 ? (
-            lyrics.map((line, index) => index === currentLineIndex && (
-              <Motion.div
-                key={index}
-                initial={{ opacity: 0, scale: 0.8, filter: 'blur(20px)', y: 40 }}
-                animate={{ opacity: 1, scale: 1, filter: 'blur(0px)', y: 0 }}
-                exit={{ opacity: 0, scale: 1.2, filter: 'blur(30px)', y: -40 }}
-                className="lyric-line active"
-                style={{
-                  width: '100%',
-                  textAlign: 'center',
-                  padding: '1rem 4rem',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  position: 'absolute',
-                  fontSize: `clamp(1.5rem, ${settings.activeSize * 1.2}vw, ${settings.activeSize}rem)`,
-                  wordBreak: 'normal',
-                  overflowWrap: 'break-word',
-                  whiteSpace: 'normal',
-                }}
-                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              >
-                <span style={{ maxWidth: '90vw', display: 'inline-block' }}>{line.text}</span>
-              </Motion.div>
-            ))
+            <>
+              {renderLyric(getLine(-1), -1)}
+              {renderLyric(getLine(0), 0)}
+              {renderLyric(getLine(1), 1)}
+            </>
           ) : (
             <Motion.div key="no-lyrics" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ color: 'var(--text-muted)' }}>
               Instrumental / No se encontraron letras
@@ -136,7 +197,17 @@ function App() {
 
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem('spoty_settings');
-    return saved ? JSON.parse(saved) : DEFAULT_SETTINGS;
+    if (!saved) return DEFAULT_SETTINGS;
+    try {
+      const parsed = JSON.parse(saved);
+      // Validar si la estructura es la nueva (contiene 'standard')
+      if (parsed && typeof parsed === 'object' && !parsed.standard) {
+        return DEFAULT_SETTINGS;
+      }
+      return parsed;
+    } catch (e) {
+      return DEFAULT_SETTINGS;
+    }
   });
 
   const lastTrackId = useRef(null);
@@ -144,6 +215,24 @@ function App() {
   const lastSpotifyProgress = useRef(0);
   const animationFrameRef = useRef(null);
   const timerRef = useRef(null);
+  const settingsRef = useRef(null);
+
+  // Click-away listener for settings
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (settingsRef.current && !settingsRef.current.contains(event.target)) {
+        // Also check if the click was on the toggle button itself to avoid immediate re-opening
+        const toggleBtn = document.querySelector('.nav-icon-btn');
+        if (toggleBtn && !toggleBtn.contains(event.target)) {
+          setShowSettings(false);
+        }
+      }
+    };
+    if (showSettings) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSettings]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -275,7 +364,13 @@ function App() {
 
       <AnimatePresence>
         {showSettings && (
-          <Motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="settings-panel">
+          <Motion.div
+            ref={settingsRef}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="settings-panel"
+          >
             <h3>Ajustes</h3>
             <div className="settings-group toggle-group">
               <label>Modo Cotodama</label>
@@ -285,18 +380,57 @@ function App() {
               <label>Flujo Suave</label>
               <input type="checkbox" checked={settings.smoothTransitions} onChange={(e) => setSettings({ ...settings, smoothTransitions: e.target.checked })} />
             </div>
-            <div className="settings-group">
-              <label>Letra Activa</label>
-              <input type="range" min="1" max="10" step="0.1" value={settings.activeSize} onChange={(e) => setSettings({ ...settings, activeSize: parseFloat(e.target.value) })} />
-            </div>
-            <div className="settings-group">
-              <label>Letra Inactiva</label>
-              <input type="range" min="0.5" max="5" step="0.1" value={settings.inactiveSize} onChange={(e) => setSettings({ ...settings, inactiveSize: parseFloat(e.target.value) })} />
-            </div>
-            <div className="settings-group">
-              <label>Tamaño Portada</label>
-              <input type="range" min="200" max="800" step="10" value={settings.albumSize} onChange={(e) => setSettings({ ...settings, albumSize: parseInt(e.target.value) })} />
-            </div>
+
+            <hr style={{ opacity: 0.1, margin: '1rem 0', border: 'none', height: '1px', background: 'currentColor' }} />
+
+            {settings.cotodamaMode ? (
+              // AJUSTES COTODAMA
+              <>
+                <div className="settings-group">
+                  <label>Letra Activa ({settings.cotodama.activeSize}rem)</label>
+                  <input type="range" min="2" max="15" step="0.1" value={settings.cotodama.activeSize} onChange={(e) => setSettings({ ...settings, cotodama: { ...settings.cotodama, activeSize: parseFloat(e.target.value) } })} />
+                </div>
+                <div className="settings-group">
+                  <label>Letra Inactiva ({settings.cotodama.inactiveSize}rem)</label>
+                  <input type="range" min="1" max="8" step="0.1" value={settings.cotodama.inactiveSize} onChange={(e) => setSettings({ ...settings, cotodama: { ...settings.cotodama, inactiveSize: parseFloat(e.target.value) } })} />
+                </div>
+                <div className="settings-group">
+                  <label>Brillo Cotodama ({settings.cotodama.activeBlur}px)</label>
+                  <input type="range" min="0" max="100" step="1" value={settings.cotodama.activeBlur} onChange={(e) => setSettings({ ...settings, cotodama: { ...settings.cotodama, activeBlur: parseInt(e.target.value) } })} />
+                </div>
+              </>
+            ) : (
+              // AJUSTES ESTÁNDAR
+              <>
+                <div className="settings-group">
+                  <label>Letra Activa ({settings.standard.activeSize}rem)</label>
+                  <input type="range" min="1" max="10" step="0.1" value={settings.standard.activeSize} onChange={(e) => setSettings({ ...settings, standard: { ...settings.standard, activeSize: parseFloat(e.target.value) } })} />
+                </div>
+                <div className="settings-group">
+                  <label>Letra Inactiva ({settings.standard.inactiveSize}rem)</label>
+                  <input type="range" min="0.5" max="5" step="0.1" value={settings.standard.inactiveSize} onChange={(e) => setSettings({ ...settings, standard: { ...settings.standard, inactiveSize: parseFloat(e.target.value) } })} />
+                </div>
+                <div className="settings-group">
+                  <label>División Diseño ({settings.standard.layoutSplit}%)</label>
+                  <input type="range" min="20" max="60" step="1" value={settings.standard.layoutSplit} onChange={(e) => setSettings({ ...settings, standard: { ...settings.standard, layoutSplit: parseInt(e.target.value) } })} />
+                </div>
+                <div className="settings-group">
+                  <label>Tamaño Portada ({settings.standard.albumSize}px)</label>
+                  <input
+                    type="range"
+                    min="100"
+                    max={Math.floor(window.innerWidth * (settings.standard.layoutSplit / 100) - 60)}
+                    step="10"
+                    value={Math.min(settings.standard.albumSize, Math.floor(window.innerWidth * (settings.standard.layoutSplit / 100) - 60))}
+                    onChange={(e) => setSettings({ ...settings, standard: { ...settings.standard, albumSize: parseInt(e.target.value) } })}
+                  />
+                </div>
+                <div className="settings-group">
+                  <label>Brillo Letra ({settings.standard.activeBlur}px)</label>
+                  <input type="range" min="0" max="80" step="1" value={settings.standard.activeBlur} onChange={(e) => setSettings({ ...settings, standard: { ...settings.standard, activeBlur: parseInt(e.target.value) } })} />
+                </div>
+              </>
+            )}
           </Motion.div>
         )}
       </AnimatePresence>
