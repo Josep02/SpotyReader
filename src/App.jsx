@@ -58,7 +58,7 @@ const StandardView = ({ track, lyrics, currentLineIndex, settings }) => {
               }}
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
               className={`lyric-line ${index === currentLineIndex ? 'active' : ''}`}
-              style={{ 
+              style={{
                 transformOrigin: 'left center'
               }}
             >
@@ -88,31 +88,31 @@ const CotodamaView = ({ lyrics, currentLineIndex, settings, isFetching }) => {
               Buscando Letras...
             </Motion.div>
           ) : lyrics.length > 0 ? (
-            <Motion.div
-              key={currentLineIndex}
-              initial={{ opacity: 0, scale: 0.8, filter: 'blur(20px)', y: 40 }}
-              animate={{ 
-                opacity: 1, 
-                scale: 1, 
-                filter: 'blur(0px)',
-                y: 0,
-                fontSize: `${settings.activeSize}rem`,
-              }}
-              exit={{ opacity: 0, scale: 1.2, filter: 'blur(30px)', y: -40 }}
-              className="lyric-line active"
-              style={{ 
-                width: '100%',
-                textAlign: 'center',
-                padding: '1rem 2rem',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                position: 'absolute'
-              }}
-              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            >
-              <span style={{ maxWidth: '1000px', display: 'inline-block' }}>{lyrics[currentLineIndex]?.text}</span>
-            </Motion.div>
+            lyrics.map((line, index) => index === currentLineIndex && (
+              <Motion.div
+                key={index}
+                initial={{ opacity: 0, scale: 0.8, filter: 'blur(20px)', y: 40 }}
+                animate={{ opacity: 1, scale: 1, filter: 'blur(0px)', y: 0 }}
+                exit={{ opacity: 0, scale: 1.2, filter: 'blur(30px)', y: -40 }}
+                className="lyric-line active"
+                style={{
+                  width: '100%',
+                  textAlign: 'center',
+                  padding: '1rem 4rem',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  position: 'absolute',
+                  fontSize: `clamp(1.5rem, ${settings.activeSize * 1.2}vw, ${settings.activeSize}rem)`,
+                  wordBreak: 'normal',
+                  overflowWrap: 'break-word',
+                  whiteSpace: 'normal',
+                }}
+                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <span style={{ maxWidth: '90vw', display: 'inline-block' }}>{line.text}</span>
+              </Motion.div>
+            ))
           ) : (
             <Motion.div key="no-lyrics" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ color: 'var(--text-muted)' }}>
               Instrumental / No se encontraron letras
@@ -133,7 +133,7 @@ function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [uiVisible, setUiVisible] = useState(true);
   const [isFetching, setIsFetching] = useState(false);
-  
+
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem('spoty_settings');
     return saved ? JSON.parse(saved) : DEFAULT_SETTINGS;
@@ -265,7 +265,7 @@ function App() {
           />
         )}
       </AnimatePresence>
-      
+
       <div className={`header-nav ${!uiVisible && !showSettings ? 'hidden' : ''}`}>
         <button onClick={() => setShowSettings(!showSettings)} className="nav-icon-btn">
           {showSettings ? <X size={18} /> : <Sliders size={18} />}
@@ -279,23 +279,23 @@ function App() {
             <h3>Ajustes</h3>
             <div className="settings-group toggle-group">
               <label>Modo Cotodama</label>
-              <input type="checkbox" checked={settings.cotodamaMode} onChange={(e) => setSettings({...settings, cotodamaMode: e.target.checked})} />
+              <input type="checkbox" checked={settings.cotodamaMode} onChange={(e) => setSettings({ ...settings, cotodamaMode: e.target.checked })} />
             </div>
             <div className="settings-group toggle-group">
               <label>Flujo Suave</label>
-              <input type="checkbox" checked={settings.smoothTransitions} onChange={(e) => setSettings({...settings, smoothTransitions: e.target.checked})} />
+              <input type="checkbox" checked={settings.smoothTransitions} onChange={(e) => setSettings({ ...settings, smoothTransitions: e.target.checked })} />
             </div>
             <div className="settings-group">
               <label>Letra Activa</label>
-              <input type="range" min="1" max="10" step="0.1" value={settings.activeSize} onChange={(e) => setSettings({...settings, activeSize: parseFloat(e.target.value)})} />
+              <input type="range" min="1" max="10" step="0.1" value={settings.activeSize} onChange={(e) => setSettings({ ...settings, activeSize: parseFloat(e.target.value) })} />
             </div>
             <div className="settings-group">
               <label>Letra Inactiva</label>
-              <input type="range" min="0.5" max="5" step="0.1" value={settings.inactiveSize} onChange={(e) => setSettings({...settings, inactiveSize: parseFloat(e.target.value)})} />
+              <input type="range" min="0.5" max="5" step="0.1" value={settings.inactiveSize} onChange={(e) => setSettings({ ...settings, inactiveSize: parseFloat(e.target.value) })} />
             </div>
             <div className="settings-group">
               <label>Tamaño Portada</label>
-              <input type="range" min="200" max="800" step="10" value={settings.albumSize} onChange={(e) => setSettings({...settings, albumSize: parseInt(e.target.value)})} />
+              <input type="range" min="200" max="800" step="10" value={settings.albumSize} onChange={(e) => setSettings({ ...settings, albumSize: parseInt(e.target.value) })} />
             </div>
           </Motion.div>
         )}

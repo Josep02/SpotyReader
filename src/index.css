@@ -6,7 +6,8 @@
   --glass-border: rgba(255, 255, 255, 0.1);
   --text-main: #ffffff;
   --text-muted: rgba(255, 255, 255, 0.35);
-  --accent-color: #1DB954; /* Spotify Green for accents */
+  --accent-color: #1DB954;
+  /* Spotify Green for accents */
 }
 
 * {
@@ -25,7 +26,8 @@ body,
   width: 100vw;
   overflow: hidden;
   overscroll-behavior: none;
-  background-color: #000; /* Re-established as base fallback */
+  background-color: #000;
+  /* Re-established as base fallback */
 }
 
 body {
@@ -88,7 +90,7 @@ body {
 }
 
 .nav-icon-btn:hover {
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   transform: scale(1.05);
 }
 
@@ -112,7 +114,7 @@ body {
   text-align: center;
   width: 100%;
   max-width: 420px;
-  box-shadow: 0 40px 100px rgba(0,0,0,0.8);
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.8);
 }
 
 .login-card h1 {
@@ -159,7 +161,7 @@ body {
   width: 100%;
   aspect-ratio: 1;
   border-radius: 20px;
-  box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
   object-fit: cover;
 }
 
@@ -196,13 +198,15 @@ body {
 .lyric-line {
   margin: 1.2rem 0;
   opacity: 0.25;
-  transition: opacity 0.6s ease, filter 0.6s ease;
   transform-origin: left center;
   line-height: 1.25;
-  padding: 0.5rem 1.5rem; /* Increased padding to prevent glow clipping */
-  width: 100%; /* Force full width for wrapping */
+  padding: 0.5rem 1.5rem;
+  /* Increased padding to prevent glow clipping */
+  width: 100%;
+  /* Force full width for wrapping */
   max-width: 100%;
-  word-wrap: break-word; /* Ensure text wrapping */
+  word-wrap: break-word;
+  /* Ensure text wrapping */
   white-space: pre-wrap;
   display: block;
 }
@@ -210,20 +214,27 @@ body {
 .lyric-line.active {
   opacity: 1;
   color: #fff;
-  filter: drop-shadow(0 0 15px rgba(255,255,255,0.4));
+  filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.4));
   font-weight: 800;
 }
 
 .cotodama .lyric-line.active {
   animation: cotodama-pulse 3s infinite alternate ease-in-out;
-  filter: drop-shadow(0 0 25px rgba(255,255,255,0.6));
+  filter: drop-shadow(0 0 25px rgba(255, 255, 255, 0.6));
   line-height: 1.1;
   letter-spacing: -2px;
 }
 
 @keyframes cotodama-pulse {
-  from { transform: scale(1); opacity: 0.95; }
-  to { transform: scale(1.02); opacity: 1; }
+  from {
+    transform: scale(1);
+    opacity: 0.95;
+  }
+
+  to {
+    transform: scale(1.02);
+    opacity: 1;
+  }
 }
 
 /* Settings */
@@ -275,7 +286,7 @@ input[type="range"]::-webkit-slider-thumb {
   background: #fff;
   border-radius: 50%;
   margin-top: -6px;
-  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
   transition: transform 0.2s;
 }
 
@@ -288,7 +299,7 @@ input[type="checkbox"] {
   appearance: none;
   width: 34px;
   height: 18px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   position: relative;
   cursor: pointer;
@@ -373,10 +384,10 @@ input[type="checkbox"]:checked::before {
     height: 200px;
     margin: 0 auto;
   }
-  
+
   .lyric-line {
-      line-height: 1.2;
-      text-align: center;
+    line-height: 1.2;
+    text-align: center;
   }
 }
 
