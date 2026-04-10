@@ -175,14 +175,22 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
     if (code && !token) {
-      getToken(code).then(data => {
-        if (data.access_token) {
-          localStorage.setItem('spotify_access_token', data.access_token);
-          localStorage.setItem('spotify_refresh_token', data.refresh_token);
-          setToken(data.access_token);
-          window.history.replaceState({}, document.title, window.location.pathname);
-        }
-      });
+      console.log('Detectado código de Spotify, intercambiando por token...');
+      getToken(code)
+        .then(data => {
+          if (data.access_token) {
+            console.log('Token obtenido con éxito');
+            localStorage.setItem('spotify_access_token', data.access_token);
+            localStorage.setItem('spotify_refresh_token', data.refresh_token);
+            setToken(data.access_token);
+            window.history.replaceState({}, document.title, window.location.pathname);
+          } else {
+            console.error('Error en el intercambio de token:', data);
+          }
+        })
+        .catch(err => {
+          console.error('Fallo crítico en el intercambio de token:', err);
+        });
     }
   }, [token]);
 
