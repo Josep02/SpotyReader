@@ -1,6 +1,15 @@
 const CLIENT_ID = import.meta.env.VITE_SPOTIFY_CLIENT_ID;
-// Dynamically determine redirect URI based on current environment
-const REDIRECT_URI = window.location.origin + window.location.pathname;
+
+// Dynamically determine redirect URI based on current environment.
+// We strip any hashes or query params and ensure a consistent base path.
+const getRedirectUri = () => {
+  const url = new URL(window.location.href);
+  // Ensure we only use the base path without query params or hashes
+  return url.origin + url.pathname;
+};
+
+const REDIRECT_URI = getRedirectUri();
+console.log('Spotify Redirect URI:', REDIRECT_URI);
 
 export const authEndpoint = "https://accounts.spotify.com/authorize";
 const scopes = [
