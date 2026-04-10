@@ -64,42 +64,50 @@
   cursor: pointer;
 }
 
-/* Cotodama Mode Styles */
-.app-container.cotodama {
-  background: #000 !important;
-  color: #fff;
+/* Layouts */
+.player-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  width: 100%;
+  max-width: 1400px;
+  gap: 4rem;
+  align-items: center;
+  transition: all 0.5s ease;
 }
 
-.app-container.cotodama .background-canvas {
-  opacity: 0.2;
-  filter: saturate(0) blur(100px);
-}
-
-.app-container.cotodama .track-info {
-  display: none;
+.cotodama-layout {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 80vh;
+  text-align: center;
 }
 
 .app-container.cotodama .lyrics-container {
-  width: 100vw;
-  max-width: 100%;
-  padding: 0 10%;
-}
-
-.app-container.cotodama .lyric-line {
-  color: rgba(255, 255, 255, 0.1); /* Very dimmed for inactive */
-  margin: 2rem 0;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.app-container.cotodama .lyric-line.active {
-  color: #fff;
-  text-shadow: 0 0 20px rgba(255,255,255,0.5);
+  width: 100%;
+  max-width: 1200px;
+  mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
 }
 
 .lyric-line {
-  transition: color 0.3s ease;
-  will-change: transform;
+  transform-origin: left center;
+  padding: 0.5rem 1rem;
+  margin: 0.5rem 0;
+  line-height: 1.2;
+  word-wrap: break-word;
+}
+
+.app-container.cotodama .lyric-line {
+  transform-origin: center center; /* In Cotodama we center */
+  text-align: center;
+}
+
+.settings-panel h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  color: #fff;
 }
 
 .toggle-group {
