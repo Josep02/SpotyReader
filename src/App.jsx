@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Music, Music2, Settings, X, LogOut } from 'lucide-react';
+import { Music, Music2, Settings, X, Ghost } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getToken, redirectToLogin, refreshAccessToken } from './lib/spotify';
 import { fetchLyrics, parseLyrics } from './lib/lyrics';
@@ -9,6 +9,8 @@ const DEFAULT_SETTINGS = {
   inactiveSize: 1.8,
   albumSize: 400,
   titleSize: 2,
+  smoothTransitions: true,
+  cotodamaMode: false,
 };
 
 function App() {
@@ -44,7 +46,7 @@ function App() {
           localStorage.setItem('spotify_access_token', data.access_token);
           localStorage.setItem('spotify_refresh_token', data.refresh_token);
           setToken(data.access_token);
-          window.history.replaceState({}, document.title, '/');
+          window.history.replaceState({}, document.title, window.location.pathname);
         }
       }).finally(() => setIsLoading(false));
     }
@@ -74,7 +76,6 @@ function App() {
 
         if (res.status === 204) {
           setTrack(null);
-          setLyrics([]);
           return;
         }
 
@@ -86,13 +87,12 @@ function App() {
           return;
         }
 
-        // Always update basic info
         setTrack(newTrack);
         setIsPlaying(data.is_playing);
 
-        // Fetch lyrics only if track changed
         if (newTrack.id !== lastTrackId.current) {
           lastTrackId.current = newTrack.id;
+          setLyrics([]);
           const lyricsData = await fetchLyrics(
             newTrack.name,
             newTrack.artists[0].name,
@@ -110,13 +110,12 @@ function App() {
           }
         }
 
-        // Sync progress
-        if (data.progress_ms !== undefined) {
+        if (data.progress_ms !== undefined && lyrics.length > 0) {
           const progressSec = data.progress_ms / 1000;
-          // Find the last line that started before current progress
-          let activeIdx = -1;
-          // We need current lyrics from state, but inside an interval it can be tricky.
-          // React updates state, so we use a small trick by finding in the current sync loop
+          const index = lyrics.findLastIndex(l => l.time <= progressSec + 0.3);
+          if (index !== currentLineIndex) {
+            setCurrentLineIndex(index);
+          }
         }
       } catch (err) {
         console.error('Playback Error:', err);
@@ -126,43 +125,7 @@ function App() {
     fetchPlayback();
     const interval = setInterval(fetchPlayback, 1000);
     return () => clearInterval(interval);
-  }, [token]); // ONLY depend on token to avoid restarts
-
-  // Progress Sync Effect (Separated for stability)
-  useEffect(() => {
-    if (!track || lyrics.length === 0) return;
-    
-    // This runs less frequently or on demand if needed, 
-    // but for now, we'll let the main polling set a simple counter or use global sync.
-  }, [track, lyrics]);
-
-  // Helper to get active index from lyrics
-  const updateActiveIndex = (progressMs) => {
-    if (!lyrics.length) return;
-    const progressSec = progressMs / 1000;
-    const index = lyrics.findLastIndex(l => l.time <= progressSec + 0.3);
-    if (index !== currentLineIndex) {
-      setCurrentLineIndex(index);
-    }
-  };
-
-  // Re-fetch progress more accurately
-  useEffect(() => {
-    if (!token || !isPlaying) return;
-    
-    // Refined sync timer
-    const syncTimer = setInterval(async () => {
-       const res = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
-          headers: { Authorization: `Bearer ${token}` },
-       });
-       if (res.ok && res.status !== 204) {
-         const data = await res.json();
-         updateActiveIndex(data.progress_ms);
-       }
-    }, 1000);
-
-    return () => clearInterval(syncTimer);
-  }, [token, isPlaying, lyrics]);
+  }, [token, lyrics, currentLineIndex]);
 
   // Scroll logic
   useEffect(() => {
@@ -170,21 +133,28 @@ function App() {
       const el = scrollRef.current.children[currentLineIndex];
       if (el) {
         const containerH = scrollRef.current.parentElement.clientHeight;
-        const offset = el.offsetTop - containerH / 2 + el.clientHeight / 2;
+        const offset = el.offsetTop - containerH / 2 + (settings.cotodamaMode ? el.clientHeight / 2 : 0);
+        
+        // Use auto or smooth behavior based on settings
+        scrollRef.current.style.transition = settings.smoothTransitions ? 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
         scrollRef.current.style.transform = `translateY(${-offset}px)`;
       }
     }
-  }, [currentLineIndex, settings]);
+  }, [currentLineIndex, settings.smoothTransitions, settings.activeSize, settings.cotodamaMode]);
 
   const handleLogout = () => {
     localStorage.clear();
     setToken(null);
     setTrack(null);
     setLyrics([]);
-    window.location.href = '/';
+    window.location.href = window.location.pathname;
   };
 
-  if (isLoading) return <div className="app-container"><div className="login-screen"><p>Sincronizando...</p></div></div>;
+  const updateSetting = (key, val) => {
+    setSettings(prev => ({ ...prev, [key]: val }));
+  };
+
+  if (isLoading) return <div className="app-container"><div className="login-screen"><p>Preparando tu experiencia...</p></div></div>;
 
   if (!token) {
     return (
@@ -200,53 +170,79 @@ function App() {
   }
 
   return (
-    <div className="app-container">
-      {track && <div className="background-canvas" style={{ backgroundImage: `url(${track.album.images[0]?.url})` }} />}
+    <div className={`app-container ${settings.cotodamaMode ? 'cotodama' : ''}`}>
+      {track && (
+        <div 
+          className="background-canvas" 
+          style={{ 
+            backgroundImage: `url(${track.album.images[0]?.url})`,
+            filter: settings.cotodamaMode ? 'grayscale(100%) blur(80px) brightness(0.3)' : 'blur(60px) brightness(0.5)'
+          }} 
+        />
+      )}
       
       <button onClick={handleLogout} className="logout-btn">Salir</button>
       <button onClick={() => setShowSettings(!showSettings)} className="edit-btn">
-        {showSettings ? <X size={16} /> : 'Editar'}
+        {showSettings ? <X size={16} /> : <Settings size={16} />}
       </button>
 
       <AnimatePresence>
         {showSettings && (
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="settings-panel">
-            <h3>Personalizar</h3>
+            <h3>Ajustes</h3>
+            
+            <div className="settings-group toggle-group">
+              <label>Modo Cotodama</label>
+              <input type="checkbox" checked={settings.cotodamaMode} onChange={(e) => updateSetting('cotodamaMode', e.target.checked)} />
+            </div>
+
+            <div className="settings-group toggle-group">
+              <label>Transición Suave</label>
+              <input type="checkbox" checked={settings.smoothTransitions} onChange={(e) => updateSetting('smoothTransitions', e.target.checked)} />
+            </div>
+
             <div className="settings-group">
               <label>Letra Activa ({settings.activeSize}rem)</label>
-              <input type="range" min="1" max="6" step="0.1" value={settings.activeSize} onChange={(e) => setSettings({...settings, activeSize: parseFloat(e.target.value)})} />
+              <input type="range" min="1" max="8" step="0.1" value={settings.activeSize} onChange={(e) => updateSetting('activeSize', parseFloat(e.target.value))} />
             </div>
+
             <div className="settings-group">
               <label>Letra Inactiva ({settings.inactiveSize}rem)</label>
-              <input type="range" min="0.5" max="3" step="0.1" value={settings.inactiveSize} onChange={(e) => setSettings({...settings, inactiveSize: parseFloat(e.target.value)})} />
+              <input type="range" min="0.5" max="4" step="0.1" value={settings.inactiveSize} onChange={(e) => updateSetting('inactiveSize', parseFloat(e.target.value))} />
             </div>
-            <div className="settings-group">
-              <label>Título ({settings.titleSize}rem)</label>
-              <input type="range" min="1" max="4" step="0.1" value={settings.titleSize} onChange={(e) => setSettings({...settings, titleSize: parseFloat(e.target.value)})} />
-            </div>
-            <div className="settings-group">
-              <label>Portada ({settings.albumSize}px)</label>
-              <input type="range" min="100" max="600" step="10" value={settings.albumSize} onChange={(e) => setSettings({...settings, albumSize: parseInt(e.target.value)})} />
-            </div>
+
+            {!settings.cotodamaMode && (
+              <>
+                <div className="settings-group">
+                  <label>Título ({settings.titleSize}rem)</label>
+                  <input type="range" min="1" max="4" step="0.1" value={settings.titleSize} onChange={(e) => updateSetting('titleSize', parseFloat(e.target.value))} />
+                </div>
+                <div className="settings-group">
+                  <label>Portada ({settings.albumSize}px)</label>
+                  <input type="range" min="100" max="600" step="10" value={settings.albumSize} onChange={(e) => updateSetting('albumSize', parseInt(e.target.value))} />
+                </div>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
 
       <div className="player-layout">
-        <div className="track-info">
-          {track ? (
-            <motion.div key={track.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="track-card">
-              <img src={track.album.images[0]?.url} className="album-art" style={{ maxWidth: `${settings.albumSize}px` }} />
-              <div style={{ marginTop: '1.5rem' }}>
-                <h2 style={{ fontSize: `${settings.titleSize}rem` }}>{track.name}</h2>
-                <p style={{ color: 'var(--text-muted)' }}>{track.artists.map(a => a.name).join(', ')}</p>
-                {!isPlaying && <p style={{ color: 'var(--primary)', marginTop: '0.5rem', fontSize: '0.8rem' }}>En pausa</p>}
-              </div>
-            </motion.div>
-          ) : (
-            <div className="no-track-info"><Music size={100} opacity={0.3} /><p>Abre Spotify y reproduce algo</p></div>
-          )}
-        </div>
+        {!settings.cotodamaMode && (
+          <div className="track-info">
+            {track ? (
+              <motion.div key={track.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="track-card">
+                <img src={track.album.images[0]?.url} className="album-art" style={{ maxWidth: `${settings.albumSize}px` }} />
+                <div style={{ marginTop: '1.5rem' }}>
+                  <h2 style={{ fontSize: `${settings.titleSize}rem` }}>{track.name}</h2>
+                  <p style={{ color: 'var(--text-muted)' }}>{track.artists.map(a => a.name).join(', ')}</p>
+                </div>
+              </motion.div>
+            ) : (
+              <div className="no-track-info"><Music size={80} opacity={0.3} /><p>Escucha algo en Spotify</p></div>
+            )}
+          </div>
+        )}
 
         <div className="lyrics-container">
           <div className="lyrics-scroll" ref={scrollRef}>
@@ -255,18 +251,29 @@ function App() {
                 <motion.div
                   key={index}
                   className={`lyric-line ${index === currentLineIndex ? 'active' : ''}`}
-                  style={{ fontSize: index === currentLineIndex ? `${settings.activeSize}rem` : `${settings.inactiveSize}rem` }}
+                  style={{ 
+                    fontSize: index === currentLineIndex ? `${settings.activeSize}rem` : `${settings.inactiveSize}rem`,
+                    textAlign: settings.cotodamaMode ? 'center' : 'left'
+                  }}
                   animate={{
-                    opacity: index === currentLineIndex ? 1 : 0.2,
-                    x: index === currentLineIndex ? 10 : 0,
+                    opacity: index === currentLineIndex ? 1 : (settings.cotodamaMode ? 0.05 : 0.2),
+                    x: index === currentLineIndex ? (settings.cotodamaMode ? 0 : 20) : 0,
+                    filter: index === currentLineIndex ? 'blur(0px)' : (settings.cotodamaMode ? 'blur(4px)' : 'blur(0px)'),
+                    scale: settings.cotodamaMode && index === currentLineIndex ? 1.05 : 1
+                  }}
+                  transition={{
+                    duration: settings.smoothTransitions ? 0.6 : 0,
+                    type: "spring",
+                    stiffness: 100,
+                    damping: 20
                   }}
                 >
                   {line.text}
                 </motion.div>
               ))
             ) : (
-              <div className="lyric-line active" style={{ textAlign: 'center' }}>
-                {track ? 'Letras no disponibles' : 'Esperando música...'}
+              <div className="lyric-line active" style={{ textAlign: 'center', opacity: 0.5 }}>
+                {track ? 'Buscando letras...' : 'Esperando música...'}
               </div>
             )}
           </div>
