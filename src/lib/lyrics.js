@@ -19,7 +19,7 @@ export const fetchLyrics = async (trackName, artistName, albumName, durationSeco
     });
     
     return response.data;
-  } catch (error) {
+  } catch {
     // If exact match fails, try searching
     try {
       const searchResponse = await axios.get('https://lrclib.net/api/search', {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Music, Settings, LogOut, X, Sliders } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { getToken, redirectToLogin, refreshAccessToken } from './lib/spotify';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
+import { getToken, redirectToLogin } from './lib/spotify';
 import { fetchLyrics, parseLyrics } from './lib/lyrics';
 
 const DEFAULT_SETTINGS = {
@@ -30,16 +30,16 @@ const StandardView = ({ track, lyrics, currentLineIndex, settings }) => {
   }, [currentLineIndex, settings]);
 
   return (
-    <div className="player-layout">
+    <div className="player-layout standard-view">
       <div className="track-info">
         {track ? (
-          <motion.div key={track.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="track-card">
-            <img src={track.album.images[0]?.url} className="album-art" style={{ maxWidth: `${settings.albumSize}px` }} />
+          <Motion.div key={track.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="track-card">
+            <img src={track.album.images[0]?.url} className="album-art" style={{ maxWidth: `${track.album.images[0]?.width > 400 ? settings.albumSize : 300}px` }} />
             <div style={{ marginTop: '2rem' }}>
               <h1 style={{ fontSize: `${settings.titleSize}rem` }}>{track.name}</h1>
               <p style={{ color: 'var(--text-muted)', fontSize: '1.2rem' }}>{track.artists.map(a => a.name).join(', ')}</p>
             </div>
-          </motion.div>
+          </Motion.div>
         ) : (
           <div className="no-track-info"><Music size={80} opacity={0.2} /></div>
         )}
@@ -48,16 +48,22 @@ const StandardView = ({ track, lyrics, currentLineIndex, settings }) => {
       <div className="lyrics-container">
         <div className="lyrics-scroll" ref={scrollRef}>
           {lyrics.map((line, index) => (
-            <div
+            <Motion.div
               key={index}
+              initial={false}
+              animate={{
+                fontSize: index === currentLineIndex ? `${settings.activeSize}rem` : `${settings.inactiveSize}rem`,
+                opacity: index === currentLineIndex ? 1 : 0.25,
+                color: index === currentLineIndex ? '#fff' : 'rgba(255,255,255,0.25)',
+              }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
               className={`lyric-line ${index === currentLineIndex ? 'active' : ''}`}
               style={{ 
-                fontSize: index === currentLineIndex ? `${settings.activeSize}rem` : `${settings.inactiveSize}rem`,
                 transformOrigin: 'left center'
               }}
             >
               {line.text}
-            </div>
+            </Motion.div>
           ))}
         </div>
       </div>
@@ -66,38 +72,52 @@ const StandardView = ({ track, lyrics, currentLineIndex, settings }) => {
 };
 
 // --- VISTA COTODAMA ---
-const CotodamaView = ({ lyrics, currentLineIndex, settings }) => {
-  const visibleRange = 3;
-  const startIndex = Math.max(0, currentLineIndex - visibleRange);
-  const endIndex = Math.min(lyrics.length, currentLineIndex + visibleRange + 1);
-
+const CotodamaView = ({ lyrics, currentLineIndex, settings, isFetching }) => {
   return (
     <div className="cotodama-layout">
-      <div className="lyrics-container">
-        <AnimatePresence mode="popLayout">
-          {lyrics.slice(startIndex, endIndex).map((line, i) => {
-            const actualIndex = startIndex + i;
-            const isActive = actualIndex === currentLineIndex;
-
-            return (
-              <motion.div
-                key={`${actualIndex}-${line.text}`}
-                initial={{ opacity: 0, y: 100, filter: 'blur(20px)' }}
-                animate={{ 
-                  opacity: isActive ? 1 : 0.05, 
-                  y: 0, 
-                  filter: isActive ? 'blur(0px)' : 'blur(10px)',
-                  scale: isActive ? 1.1 : 0.9,
-                }}
-                exit={{ opacity: 0, y: -100, filter: 'blur(20px)' }}
-                className={`lyric-line ${isActive ? 'active' : ''}`}
-                style={{ fontSize: isActive ? `${settings.activeSize}rem` : `${settings.inactiveSize}rem` }}
-                transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-              >
-                {line.text}
-              </motion.div>
-            );
-          })}
+      <div className="lyrics-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+        <AnimatePresence mode="wait">
+          {isFetching ? (
+            <Motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: [0.2, 0.5, 0.2] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              style={{ fontSize: '1.5rem', color: 'var(--text-muted)' }}
+            >
+              Buscando Letras...
+            </Motion.div>
+          ) : lyrics.length > 0 ? (
+            <Motion.div
+              key={currentLineIndex}
+              initial={{ opacity: 0, scale: 0.8, filter: 'blur(20px)', y: 40 }}
+              animate={{ 
+                opacity: 1, 
+                scale: 1, 
+                filter: 'blur(0px)',
+                y: 0,
+                fontSize: `${settings.activeSize}rem`,
+              }}
+              exit={{ opacity: 0, scale: 1.2, filter: 'blur(30px)', y: -40 }}
+              className="lyric-line active"
+              style={{ 
+                width: '100%',
+                textAlign: 'center',
+                padding: '1rem 2rem',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                position: 'absolute'
+              }}
+              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <span style={{ maxWidth: '1000px', display: 'inline-block' }}>{lyrics[currentLineIndex]?.text}</span>
+            </Motion.div>
+          ) : (
+            <Motion.div key="no-lyrics" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ color: 'var(--text-muted)' }}>
+              Instrumental / No se encontraron letras
+            </Motion.div>
+          )}
         </AnimatePresence>
       </div>
     </div>
@@ -112,6 +132,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [uiVisible, setUiVisible] = useState(true);
+  const [isFetching, setIsFetching] = useState(false);
   
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem('spoty_settings');
@@ -123,6 +144,12 @@ function App() {
   const lastSpotifyProgress = useRef(0);
   const animationFrameRef = useRef(null);
   const timerRef = useRef(null);
+
+  const handleLogout = () => {
+    localStorage.clear();
+    setToken(null);
+    window.location.href = window.location.pathname;
+  };
 
   useEffect(() => {
     localStorage.setItem('spoty_settings', JSON.stringify(settings));
@@ -177,7 +204,9 @@ function App() {
         lastSyncTime.current = performance.now();
         if (newTrack.id !== lastTrackId.current) {
           lastTrackId.current = newTrack.id;
+          setIsFetching(true);
           const lyricsData = await fetchLyrics(newTrack.name, newTrack.artists[0].name, newTrack.album.name, Math.floor(newTrack.duration_ms / 1000));
+          setIsFetching(false);
           if (lyricsData?.syncedLyrics) setLyrics(parseLyrics(lyricsData.syncedLyrics));
           else setLyrics([]);
         }
@@ -201,27 +230,33 @@ function App() {
     return () => cancelAnimationFrame(animationFrameRef.current);
   }, [lyrics, currentLineIndex, isPlaying]);
 
-  const handleLogout = () => {
-    localStorage.clear();
-    setToken(null);
-    window.location.href = window.location.pathname;
-  };
-
   if (!token) {
     return (
       <div className="login-screen">
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="login-card">
+        <Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="login-card">
           <h1>SpotyReader</h1>
           <p style={{ color: 'var(--text-muted)' }}>Minimalist Music Visualizer</p>
           <button onClick={redirectToLogin} className="login-button">CONECTAR SPOTIFY</button>
-        </motion.div>
+        </Motion.div>
       </div>
     );
   }
 
   return (
     <div className={`app-container ${settings.cotodamaMode ? 'cotodama' : ''}`}>
-      {track && <div className="background-canvas" style={{ backgroundImage: `url(${track.album.images[0]?.url})` }} />}
+      <AnimatePresence mode="popLayout">
+        {track && (
+          <Motion.div
+            key={track.album.id}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.5 }}
+            className="background-canvas"
+            style={{ backgroundImage: `url(${track.album.images[0]?.url})` }}
+          />
+        )}
+      </AnimatePresence>
       
       <div className={`header-nav ${!uiVisible && !showSettings ? 'hidden' : ''}`}>
         <button onClick={() => setShowSettings(!showSettings)} className="nav-icon-btn">
@@ -232,7 +267,7 @@ function App() {
 
       <AnimatePresence>
         {showSettings && (
-          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="settings-panel">
+          <Motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="settings-panel">
             <h3>Ajustes</h3>
             <div className="settings-group toggle-group">
               <label>Modo Cotodama</label>
@@ -246,12 +281,20 @@ function App() {
               <label>Letra Activa</label>
               <input type="range" min="1" max="10" step="0.1" value={settings.activeSize} onChange={(e) => setSettings({...settings, activeSize: parseFloat(e.target.value)})} />
             </div>
-          </motion.div>
+            <div className="settings-group">
+              <label>Letra Inactiva</label>
+              <input type="range" min="0.5" max="5" step="0.1" value={settings.inactiveSize} onChange={(e) => setSettings({...settings, inactiveSize: parseFloat(e.target.value)})} />
+            </div>
+            <div className="settings-group">
+              <label>Tamaño Portada</label>
+              <input type="range" min="200" max="800" step="10" value={settings.albumSize} onChange={(e) => setSettings({...settings, albumSize: parseInt(e.target.value)})} />
+            </div>
+          </Motion.div>
         )}
       </AnimatePresence>
 
       {settings.cotodamaMode ? (
-        <CotodamaView lyrics={lyrics} currentLineIndex={currentLineIndex} settings={settings} />
+        <CotodamaView lyrics={lyrics} currentLineIndex={currentLineIndex} settings={settings} isFetching={isFetching} />
       ) : (
         <StandardView track={track} lyrics={lyrics} currentLineIndex={currentLineIndex} settings={settings} />
       )}
