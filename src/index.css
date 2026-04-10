@@ -1,0 +1,208 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+
+.logout-btn {
+  position: absolute;
+  top: 2rem;
+  left: 2rem;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  color: var(--text-muted);
+  padding: 0.4rem 1rem;
+  border-radius: 2rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s;
+  z-index: 10;
+}
+.logout-btn:hover {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+}
+
+:root {
+  --primary: #1ed760;
+  --bg-dark: #000000;
+  --bg-surface: #121212;
+  --text-main: #ffffff;
+  --text-muted: #b3b3b3;
+  --glass: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  overflow: hidden;
+  overflow-x: hidden;
+  height: 100vh;
+  width: 100vw;
+  max-width: 100vw;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.app-container {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Background Visualizer */
+.background-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  background-size: cover;
+  background-position: center;
+  filter: blur(80px) brightness(0.4);
+  transform: scale(1.1);
+  transition: background-image 1s ease-in-out;
+}
+
+.login-screen {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 3rem;
+  background: var(--glass);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 2rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.login-button {
+  background-color: var(--primary);
+  color: #000;
+  border: none;
+  padding: 1rem 2.5rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-radius: 3rem;
+  cursor: pointer;
+  transition: transform 0.2s, background-color 0.2s;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.login-button:hover {
+  transform: scale(1.05);
+  filter: brightness(1.1);
+}
+
+/* Main Player Layout */
+.player-layout {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  width: 100%;
+  height: 100%;
+  padding: 5rem 2rem 2rem;
+  gap: 2rem;
+  max-width: 1600px;
+  overflow: hidden;
+}
+
+@media (max-width: 1024px) {
+  .player-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    overflow-y: auto;
+  }
+}
+
+.track-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 1.5rem;
+}
+
+.album-art {
+  width: 100%;
+  aspect-ratio: 1;
+  max-width: 400px;
+  border-radius: 1rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  transition: transform 0.5s ease;
+}
+
+.album-art:hover {
+  transform: scale(1.02);
+}
+
+.lyrics-container {
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lyrics-scroll {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 40vh 1rem;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 0;
+  width: 100%;
+}
+
+.lyric-line {
+  font-size: clamp(1.2rem, 2.5vw, 2.4rem);
+  font-weight: 900;
+  line-height: 1.3;
+  color: var(--text-muted);
+  cursor: default;
+  opacity: 0.25;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  width: 100%;
+  min-width: 0;
+}
+
+.lyric-line.active {
+  color: #fff;
+  opacity: 1;
+  text-shadow: 0 0 30px rgba(255, 255, 255, 0.3);
+}
+
+/* Glass UI Elements */
+.status-pill {
+  position: absolute;
+  top: 2rem;
+  right: 2rem;
+  background: var(--glass);
+  padding: 0.5rem 1rem;
+  border-radius: 1rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  backdrop-filter: blur(10px);
+}
