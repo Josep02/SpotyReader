@@ -43,54 +43,61 @@ function App() {
         });
 
         if (res.status === 401) {
+          // Token expired handling...
           const refresh = localStorage.getItem('spotify_refresh_token');
           if (refresh) {
             const data = await refreshAccessToken(refresh);
             if (data.access_token) {
               setToken(data.access_token);
               localStorage.setItem('spotify_access_token', data.access_token);
+              return;
             }
           }
+          handleLogout();
           return;
         }
 
         if (res.status === 204 || !res.ok) {
-          setTrack(null);
+          if (track) setTrack(null);
           return;
         }
 
         const data = await res.json();
         const newTrack = data.item;
-        if (!newTrack) return;
+        if (!newTrack || !data.is_playing) {
+          setIsPlaying(false);
+          return;
+        }
 
-        setTrack(newTrack);
-
-        // Fetch lyrics only when track changes
-        if (newTrack.id !== lastTrackId.current) {
+        setIsPlaying(true);
+        if (track?.id !== newTrack.id) {
+          setTrack(newTrack);
           lastTrackId.current = newTrack.id;
+          setLyrics([]); // Reset lyrics while loading new ones
+          
           const lyricsData = await fetchLyrics(
             newTrack.name,
             newTrack.artists[0].name,
             newTrack.album.name,
             Math.floor(newTrack.duration_ms / 1000)
           );
+          
           if (lyricsData?.syncedLyrics) {
             setLyrics(parseLyrics(lyricsData.syncedLyrics));
           } else {
-            setLyrics([]);
+            // If no synced, try plain lyrics as fallback
+            const plain = lyricsData?.plainLyrics?.split('\n').map((text, i) => ({ time: i * 5, text })) || [];
+            setLyrics(plain);
           }
-          setCurrentLineIndex(-1);
         }
 
         // Sync current lyric line
-        if (data.progress_ms !== undefined) {
+        if (data.progress_ms !== undefined && lyrics.length > 0) {
           const progressSec = data.progress_ms / 1000;
-          setLyrics(prev => {
-            const idx = [...prev].reverse().findIndex(l => l.time <= progressSec + 0.3);
-            const activeIndex = idx === -1 ? -1 : prev.length - 1 - idx;
+          const activeIndex = lyrics.findLastIndex(l => l.time <= progressSec + 0.3);
+          if (activeIndex !== currentLineIndex) {
             setCurrentLineIndex(activeIndex);
-            return prev;
-          });
+          }
         }
       } catch (err) {
         console.error('Playback fetch error:', err);
