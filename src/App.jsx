@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Music, Music2, Settings, X, Ghost } from 'lucide-react';
+import { Music, Music2, Settings, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getToken, redirectToLogin, refreshAccessToken } from './lib/spotify';
 import { fetchLyrics, parseLyrics } from './lib/lyrics';
 
 const DEFAULT_SETTINGS = {
-  activeSize: 3.5,
-  inactiveSize: 1.8,
-  albumSize: 400,
-  titleSize: 2,
-  smoothTransitions: true,
+  activeSize: 4,
+  inactiveSize: 1.5,
+  albumSize: 420,
+  titleSize: 2.2,
+  smoothTransitions: false, // Default to original snappy feel
   cotodamaMode: false,
 };
 
@@ -30,12 +30,10 @@ function App() {
   const scrollRef = useRef(null);
   const lastTrackId = useRef(null);
 
-  // Persist settings
   useEffect(() => {
     localStorage.setItem('spoty_settings', JSON.stringify(settings));
   }, [settings]);
 
-  // Auth Callback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
@@ -52,7 +50,6 @@ function App() {
     }
   }, [token]);
 
-  // Main Polling Loop
   useEffect(() => {
     if (!token) return;
 
@@ -81,7 +78,6 @@ function App() {
 
         const data = await res.json();
         const newTrack = data.item;
-        
         if (!newTrack) {
           setTrack(null);
           return;
@@ -125,18 +121,18 @@ function App() {
     fetchPlayback();
     const interval = setInterval(fetchPlayback, 1000);
     return () => clearInterval(interval);
-  }, [token, lyrics, currentLineIndex]);
+  }, [token, lyrics, currentLineIndex, isPlaying]);
 
-  // Scroll logic
   useEffect(() => {
     if (scrollRef.current && currentLineIndex >= 0) {
       const el = scrollRef.current.children[currentLineIndex];
       if (el) {
         const containerH = scrollRef.current.parentElement.clientHeight;
-        const offset = el.offsetTop - containerH / 2 + (settings.cotodamaMode ? el.clientHeight / 2 : 0);
+        const offset = el.offsetTop - containerH / 2 + el.clientHeight / 2;
         
-        // Use auto or smooth behavior based on settings
-        scrollRef.current.style.transition = settings.smoothTransitions ? 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)' : 'none';
+        scrollRef.current.style.transition = settings.smoothTransitions 
+          ? 'transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)' 
+          : 'none';
         scrollRef.current.style.transform = `translateY(${-offset}px)`;
       }
     }
@@ -176,7 +172,7 @@ function App() {
           className="background-canvas" 
           style={{ 
             backgroundImage: `url(${track.album.images[0]?.url})`,
-            filter: settings.cotodamaMode ? 'grayscale(100%) blur(80px) brightness(0.3)' : 'blur(60px) brightness(0.5)'
+            filter: settings.cotodamaMode ? 'grayscale(100%) blur(100px) brightness(0.25)' : 'blur(60px) brightness(0.5)'
           }} 
         />
       )}
@@ -203,23 +199,23 @@ function App() {
 
             <div className="settings-group">
               <label>Letra Activa ({settings.activeSize}rem)</label>
-              <input type="range" min="1" max="8" step="0.1" value={settings.activeSize} onChange={(e) => updateSetting('activeSize', parseFloat(e.target.value))} />
+              <input type="range" min="1" max="10" step="0.1" value={settings.activeSize} onChange={(e) => updateSetting('activeSize', parseFloat(e.target.value))} />
             </div>
 
             <div className="settings-group">
               <label>Letra Inactiva ({settings.inactiveSize}rem)</label>
-              <input type="range" min="0.5" max="4" step="0.1" value={settings.inactiveSize} onChange={(e) => updateSetting('inactiveSize', parseFloat(e.target.value))} />
+              <input type="range" min="0.5" max="5" step="0.1" value={settings.inactiveSize} onChange={(e) => updateSetting('inactiveSize', parseFloat(e.target.value))} />
             </div>
 
             {!settings.cotodamaMode && (
               <>
                 <div className="settings-group">
                   <label>Título ({settings.titleSize}rem)</label>
-                  <input type="range" min="1" max="4" step="0.1" value={settings.titleSize} onChange={(e) => updateSetting('titleSize', parseFloat(e.target.value))} />
+                  <input type="range" min="1" max="5" step="0.1" value={settings.titleSize} onChange={(e) => updateSetting('titleSize', parseFloat(e.target.value))} />
                 </div>
                 <div className="settings-group">
                   <label>Portada ({settings.albumSize}px)</label>
-                  <input type="range" min="100" max="600" step="10" value={settings.albumSize} onChange={(e) => updateSetting('albumSize', parseInt(e.target.value))} />
+                  <input type="range" min="100" max="800" step="10" value={settings.albumSize} onChange={(e) => updateSetting('albumSize', parseInt(e.target.value))} />
                 </div>
               </>
             )}
@@ -257,15 +253,15 @@ function App() {
                   }}
                   animate={{
                     opacity: index === currentLineIndex ? 1 : (settings.cotodamaMode ? 0.05 : 0.2),
-                    x: index === currentLineIndex ? (settings.cotodamaMode ? 0 : 20) : 0,
-                    filter: index === currentLineIndex ? 'blur(0px)' : (settings.cotodamaMode ? 'blur(4px)' : 'blur(0px)'),
-                    scale: settings.cotodamaMode && index === currentLineIndex ? 1.05 : 1
+                    x: index === currentLineIndex ? (settings.cotodamaMode ? 0 : 25) : 0,
+                    filter: index === currentLineIndex ? 'blur(0px)' : (settings.cotodamaMode ? 'blur(8px)' : 'blur(0px)'),
+                    scale: index === currentLineIndex ? 1.05 : 1
                   }}
                   transition={{
-                    duration: settings.smoothTransitions ? 0.6 : 0,
+                    duration: settings.smoothTransitions ? 0.8 : 0,
                     type: "spring",
-                    stiffness: 100,
-                    damping: 20
+                    stiffness: settings.smoothTransitions ? 120 : 1000,
+                    damping: settings.smoothTransitions ? 12 : 100
                   }}
                 >
                   {line.text}
@@ -273,7 +269,7 @@ function App() {
               ))
             ) : (
               <div className="lyric-line active" style={{ textAlign: 'center', opacity: 0.5 }}>
-                {track ? 'Buscando letras...' : 'Esperando música...'}
+                {track ? 'Cargando letras...' : 'Esperando música...'}
               </div>
             )}
           </div>

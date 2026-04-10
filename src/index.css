@@ -66,36 +66,40 @@
 
 /* Cotodama Mode Styles */
 .app-container.cotodama {
-  background: #000;
+  background: #000 !important;
+  color: #fff;
 }
 
 .app-container.cotodama .background-canvas {
-  opacity: 0.15;
-  filter: grayscale(100%) blur(50px);
+  opacity: 0.2;
+  filter: saturate(0) blur(100px);
 }
 
 .app-container.cotodama .track-info {
-  display: none; /* Hide art in full Cotodama mode */
+  display: none;
 }
 
 .app-container.cotodama .lyrics-container {
   width: 100vw;
-  max-width: 1000px;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
+  max-width: 100%;
+  padding: 0 10%;
 }
 
 .app-container.cotodama .lyric-line {
-  margin: 1.5rem 0;
-  font-weight: 900;
+  color: rgba(255, 255, 255, 0.1); /* Very dimmed for inactive */
+  margin: 2rem 0;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: -0.02em;
+}
+
+.app-container.cotodama .lyric-line.active {
+  color: #fff;
+  text-shadow: 0 0 20px rgba(255,255,255,0.5);
 }
 
 .lyric-line {
-  transition: color 0.4s ease, font-size 0.4s ease;
-  will-change: transform, opacity;
+  transition: color 0.3s ease;
+  will-change: transform;
 }
 
 .toggle-group {
