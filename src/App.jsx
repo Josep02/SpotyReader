@@ -1,8 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Music, Music2 } from 'lucide-react';
+import { Music, Music2, Settings, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getToken, redirectToLogin, refreshAccessToken } from './lib/spotify';
 import { fetchLyrics, parseLyrics } from './lib/lyrics';
+
+const DEFAULT_SETTINGS = {
+  activeSize: 3.5,
+  inactiveSize: 1.8,
+  albumSize: 400,
+  titleSize: 2,
+};
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('spotify_access_token'));
@@ -10,10 +17,22 @@ function App() {
   const [lyrics, setLyrics] = useState([]);
   const [currentLineIndex, setCurrentLineIndex] = useState(-1);
   const [isLoading, setIsLoading] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  
+  // Customization Settings
+  const [settings, setSettings] = useState(() => {
+    const saved = localStorage.getItem('spoty_settings');
+    return saved ? JSON.parse(saved) : DEFAULT_SETTINGS;
+  });
+
   const scrollRef = useRef(null);
   const lastTrackId = useRef(null);
 
-  // Handle Auth Callback — works on /callback path
+  useEffect(() => {
+    localStorage.setItem('spoty_settings', JSON.stringify(settings));
+  }, [settings]);
+
+  // Auth Callback
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
@@ -25,14 +44,12 @@ function App() {
           localStorage.setItem('spotify_refresh_token', data.refresh_token);
           setToken(data.access_token);
           window.history.replaceState({}, document.title, '/');
-        } else {
-          console.error('Token error:', data);
         }
       }).finally(() => setIsLoading(false));
     }
   }, []);
 
-  // Playback Polling every second
+  // Playback Polling
   useEffect(() => {
     if (!token) return;
 
@@ -43,7 +60,6 @@ function App() {
         });
 
         if (res.status === 401) {
-          // Token expired handling...
           const refresh = localStorage.getItem('spotify_refresh_token');
           if (refresh) {
             const data = await refreshAccessToken(refresh);
@@ -64,34 +80,27 @@ function App() {
 
         const data = await res.json();
         const newTrack = data.item;
-        if (!newTrack || !data.is_playing) {
-          setIsPlaying(false);
-          return;
-        }
+        if (!newTrack || !data.is_playing) return;
 
-        setIsPlaying(true);
-        if (track?.id !== newTrack.id) {
-          setTrack(newTrack);
+        setTrack(newTrack);
+
+        if (newTrack.id !== lastTrackId.current) {
           lastTrackId.current = newTrack.id;
-          setLyrics([]); // Reset lyrics while loading new ones
-          
+          setLyrics([]);
           const lyricsData = await fetchLyrics(
             newTrack.name,
             newTrack.artists[0].name,
             newTrack.album.name,
             Math.floor(newTrack.duration_ms / 1000)
           );
-          
           if (lyricsData?.syncedLyrics) {
             setLyrics(parseLyrics(lyricsData.syncedLyrics));
           } else {
-            // If no synced, try plain lyrics as fallback
             const plain = lyricsData?.plainLyrics?.split('\n').map((text, i) => ({ time: i * 5, text })) || [];
             setLyrics(plain);
           }
         }
 
-        // Sync current lyric line
         if (data.progress_ms !== undefined && lyrics.length > 0) {
           const progressSec = data.progress_ms / 1000;
           const activeIndex = lyrics.findLastIndex(l => l.time <= progressSec + 0.3);
@@ -100,16 +109,16 @@ function App() {
           }
         }
       } catch (err) {
-        console.error('Playback fetch error:', err);
+        console.error('Playback error:', err);
       }
     };
 
     fetchPlayback();
     const interval = setInterval(fetchPlayback, 1000);
     return () => clearInterval(interval);
-  }, [token]);
+  }, [token, track, lyrics, currentLineIndex]);
 
-  // Auto-scroll to active lyric line
+  // Auto-scroll logic
   useEffect(() => {
     if (scrollRef.current && currentLineIndex >= 0) {
       const el = scrollRef.current.children[currentLineIndex];
@@ -119,7 +128,7 @@ function App() {
         scrollRef.current.style.transform = `translateY(${-offset}px)`;
       }
     }
-  }, [currentLineIndex]);
+  }, [currentLineIndex, settings]);
 
   const handleLogout = () => {
     localStorage.removeItem('spotify_access_token');
@@ -129,116 +138,103 @@ function App() {
     setLyrics([]);
   };
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="app-container">
-        <div className="login-screen">
-          <Music2 size={64} color="#1ed760" />
-          <p>Conectando con Spotify...</p>
-        </div>
-      </div>
-    );
-  }
+  const updateSetting = (key, val) => {
+    setSettings(prev => ({ ...prev, [key]: val }));
+  };
 
-  // Login screen
+  if (isLoading) return <div className="app-container"><div className="login-screen"><p>Iniciando sesión...</p></div></div>;
+
   if (!token) {
     return (
       <div className="app-container">
         <div className="login-screen">
           <Music2 size={64} color="#1ed760" />
           <h1>SpotyReader</h1>
-          <p>Experimenta tus letras favoritas con un diseño premium y sincronizado.</p>
-          <button onClick={redirectToLogin} className="login-button">
-            Conectar con Spotify
-          </button>
+          <p>Letras dinámicas con diseño premium.</p>
+          <button onClick={redirectToLogin} className="login-button">Conectar con Spotify</button>
         </div>
       </div>
     );
   }
 
-  // Main player
   return (
     <div className="app-container">
-      {track && (
-        <div
-          className="background-canvas"
-          style={{ backgroundImage: `url(${track.album.images[0]?.url})` }}
-        />
-      )}
-
-      <div className="status-pill">
-        {track ? `♪ ${track.name} — ${track.artists.map(a => a.name).join(', ')}` : 'Abre Spotify para comenzar'}
-      </div>
-
-      <button onClick={handleLogout} className="logout-btn">
-        Salir
+      {track && <div className="background-canvas" style={{ backgroundImage: `url(${track.album.images[0]?.url})` }} />}
+      
+      {/* HUD Buttons */}
+      <button onClick={handleLogout} className="logout-btn">Salir</button>
+      <button onClick={() => setShowSettings(!showSettings)} className="edit-btn">
+        {showSettings ? <X size={16} /> : 'Editar'}
       </button>
 
+      {/* Settings Panel */}
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="settings-panel"
+          >
+            <h3>Personalizar</h3>
+            
+            <div className="settings-group">
+              <label>Letra Activa ({settings.activeSize}rem)</label>
+              <input type="range" min="1" max="6" step="0.1" value={settings.activeSize} onChange={(e) => updateSetting('activeSize', parseFloat(e.target.value))} />
+            </div>
+
+            <div className="settings-group">
+              <label>Letra Inactiva ({settings.inactiveSize}rem)</label>
+              <input type="range" min="0.5" max="3" step="0.1" value={settings.inactiveSize} onChange={(e) => updateSetting('inactiveSize', parseFloat(e.target.value))} />
+            </div>
+
+            <div className="settings-group">
+              <label>Título Música ({settings.titleSize}rem)</label>
+              <input type="range" min="1" max="4" step="0.1" value={settings.titleSize} onChange={(e) => updateSetting('titleSize', parseFloat(e.target.value))} />
+            </div>
+
+            <div className="settings-group">
+              <label>Tamaño Portada ({settings.albumSize}px)</label>
+              <input type="range" min="100" max="600" step="10" value={settings.albumSize} onChange={(e) => updateSetting('albumSize', parseInt(e.target.value))} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="status-pill">
+        {track ? `Reproduciendo: ${track.name}` : 'Abre Spotify'}
+      </div>
+
       <div className="player-layout">
-        {/* Left: Track Info */}
         <div className="track-info">
-          <AnimatePresence mode="wait">
-            {track ? (
-              <motion.div
-                key={track.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.5 }}
-                className="track-card"
-              >
-                <img
-                  src={track.album.images[0]?.url}
-                  alt={track.name}
-                  className="album-art"
-                />
-                <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: 800 }}>{track.name}</h2>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', marginTop: '0.4rem' }}>
-                    {track.artists.map(a => a.name).join(', ')}
-                  </p>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.2rem', opacity: 0.6 }}>
-                    {track.album.name}
-                  </p>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="no-track"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                style={{ textAlign: 'center', opacity: 0.4 }}
-              >
-                <Music size={100} />
-                <p style={{ marginTop: '1rem' }}>No hay música sonando</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {track && (
+            <motion.div key={track.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="track-card">
+              <img src={track.album.images[0]?.url} className="album-art" style={{ maxWidth: `${settings.albumSize}px` }} />
+              <div style={{ marginTop: '1.5rem' }}>
+                <h2 style={{ fontSize: `${settings.titleSize}rem` }}>{track.name}</h2>
+                <p style={{ color: 'var(--text-muted)' }}>{track.artists.map(a => a.name).join(', ')}</p>
+              </div>
+            </motion.div>
+          )}
         </div>
 
-        {/* Right: Lyrics */}
         <div className="lyrics-container">
           <div className="lyrics-scroll" ref={scrollRef}>
-            {lyrics.length > 0 ? (
-              lyrics.map((line, index) => (
-                <motion.div
-                  key={index}
-                  className={`lyric-line ${index === currentLineIndex ? 'active' : ''}`}
-                  animate={{
-                    opacity: index === currentLineIndex ? 1 : 0.25,
-                    x: index === currentLineIndex ? 8 : 0,
-                  }}
-                  transition={{ duration: 0.35, ease: 'easeOut' }}
-                >
-                  {line.text}
-                </motion.div>
-              ))
-            ) : (
-              <div className="lyric-line active" style={{ textAlign: 'center', opacity: 0.5 }}>
-                {track ? 'No se encontraron letras para esta canción' : 'Esperando música...'}
-              </div>
-            )}
+            {lyrics.map((line, index) => (
+              <motion.div
+                key={index}
+                className={`lyric-line ${index === currentLineIndex ? 'active' : ''}`}
+                style={{ 
+                  fontSize: index === currentLineIndex ? `${settings.activeSize}rem` : `${settings.inactiveSize}rem`
+                }}
+                animate={{
+                  opacity: index === currentLineIndex ? 1 : 0.2,
+                  x: index === currentLineIndex ? 12 : 0,
+                }}
+              >
+                {line.text}
+              </motion.div>
+            ))}
           </div>
         </div>
       </div>

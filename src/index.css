@@ -1,9 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
 
-.logout-btn {
+.logout-btn, .edit-btn {
   position: absolute;
   top: 2rem;
-  left: 2rem;
   background: var(--glass);
   border: 1px solid var(--glass-border);
   color: var(--text-muted);
@@ -13,11 +12,56 @@
   font-size: 0.85rem;
   backdrop-filter: blur(10px);
   transition: all 0.2s;
-  z-index: 10;
+  z-index: 100;
 }
-.logout-btn:hover {
+
+.edit-btn {
+  left: 6.5rem;
+}
+
+.logout-btn {
+  left: 2rem;
+}
+
+.logout-btn:hover, .edit-btn:hover {
   background: rgba(255,255,255,0.12);
   color: #fff;
+}
+
+/* Settings Panel */
+.settings-panel {
+  position: fixed;
+  top: 5rem;
+  left: 2rem;
+  width: 280px;
+  background: rgba(20, 20, 20, 0.85);
+  backdrop-filter: blur(25px);
+  border: 1px solid var(--glass-border);
+  border-radius: 1.5rem;
+  padding: 1.5rem;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.settings-group label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05rem;
+}
+
+.settings-group input {
+  accent-color: var(--primary);
+  cursor: pointer;
 }
 
 :root {
